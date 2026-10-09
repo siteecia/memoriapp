@@ -1,0 +1,1467 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jogo dos Cliques</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/basecoat-css@1.0.2/dist/basecoat.cdn.min.css">
+  <style>
+/* Skip artifact shell — fixed styles served beside every artifact.
+   Complements basecoat; artifacts override --accent for their own identity. */
+:root {
+  color-scheme: light dark;
+  --accent: #2563eb;
+  --accent-contrast: #ffffff;
+  --accent-text: color-mix(in srgb, var(--accent) 72%, #000);
+  --bg: #f8f9fb;
+  --surface: #ffffff;
+  --text: #14171f;
+  --text-muted: #5b6472;
+  --border: rgba(20, 23, 31, 0.10);
+  --radius: 10px;
+  --shadow: 0 1px 3px rgba(20, 23, 31, 0.08);
+  --space: 16px;
+}
+/* Theme resolution. Without data-theme the viewer's system preference decides,
+   as it always did. With it, the artifact's own choice wins in BOTH directions:
+   a page that hardcodes one palette must not be handed the opposite set of
+   tokens by the machine it happens to be opened on. The dark values appear
+   twice because a media query cannot be folded into a selector list.
+   The attribute sits inside :where() so these blocks keep the specificity of a
+   bare :root — the page's own <style> is linked after this file and must go on
+   overriding any token it wants, exactly as it could before. */
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    --accent-text: color-mix(in srgb, var(--accent) 78%, #fff);
+    --bg: #101318;
+    --surface: #181c23;
+    --text: #eef1f6;
+    --text-muted: #9aa4b2;
+    --border: rgba(238, 241, 246, 0.12);
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  }
+}
+:root:where([data-theme="dark"]) {
+  color-scheme: dark;
+  --accent-text: color-mix(in srgb, var(--accent) 78%, #fff);
+  --bg: #101318;
+  --surface: #181c23;
+  --text: #eef1f6;
+  --text-muted: #9aa4b2;
+  --border: rgba(238, 241, 246, 0.12);
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+:root:where([data-theme="light"]) { color-scheme: light; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+img { max-width: 100%; display: block; }
+
+.shell-container { max-width: 1100px; margin: 0 auto; padding: 0 20px; }
+.shell-section { padding: calc(var(--space) * 2) 0; }
+.shell-grid { display: grid; gap: var(--space); grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.shell-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: var(--space); }
+.shell-footer { padding: 24px 0 40px; color: var(--text-muted); font-size: 13px; }
+
+.shell-hero { padding: calc(var(--space) * 3) 0 calc(var(--space) * 2); }
+.shell-hero h1 { font-size: clamp(26px, 4vw, 40px); line-height: 1.15; margin: 0 0 10px; text-wrap: balance; }
+.shell-hero p { color: var(--text-muted); max-width: 60ch; margin: 0; }
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: var(--space);
+}
+
+.kpi { display: flex; flex-direction: column; gap: 4px; }
+.kpi .kpi-value { font-size: 28px; font-weight: 650; line-height: 1.1; }
+.kpi .kpi-label { font-size: 13px; color: var(--text-muted); }
+.kpi .kpi-delta { font-size: 12.5px; font-weight: 600; }
+.kpi .kpi-delta.up { color: #0a8f3c; }
+.kpi .kpi-delta.down { color: #cf3131; }
+
+table.shell-table { border-collapse: collapse; width: 100%; font-size: 14px; }
+table.shell-table th {
+  text-align: left; font-size: 11.5px; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--text-muted); font-weight: 600;
+}
+table.shell-table th, table.shell-table td { padding: 9px 12px 9px 0; border-bottom: 1px solid var(--border); }
+table.shell-table td.num, table.shell-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+
+.chart-box { width: 100%; min-height: 220px; }
+.chart-box svg { width: 100%; height: auto; display: block; }
+
+.muted { color: var(--text-muted); }
+.accent { color: var(--accent-text); }
+.shell-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent-text);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .shell-fade { animation: shell-fade 400ms ease both; }
+  @keyframes shell-fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+}
+
+</style>
+  <style>
+    :root {
+      --accent: #8b5cf6;
+      --accent-hover: #7c3aed;
+      --accent-glow: rgba(139, 92, 246, 0.4);
+      --gold: #fbbf24;
+      --silver: #cbd5e1;
+      --bronze: #f97316;
+      font-family: 'Outfit', system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at 50% 10%, #1e1035 0%, #0d0915 60%, #060409 100%);
+      color: #f1f5f9;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+      user-select: none;
+    }
+
+    /* Screen transitions */
+    .view-screen {
+      display: none;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      width: 100%;
+    }
+
+    .view-screen.active {
+      display: flex;
+      flex-direction: column;
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Header Nav */
+    .app-header {
+      padding: 1rem 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(18, 12, 28, 0.7);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .brand-title {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 800;
+      font-size: 1.25rem;
+      background: linear-gradient(135deg, #c084fc, #f472b6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      color: #c084fc;
+      margin: 0;
+    }
+
+    .brand-icon {
+      font-size: 1.5rem;
+      filter: drop-shadow(0 0 8px rgba(192, 132, 252, 0.6));
+    }
+
+    .nav-tabs {
+      display: flex;
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 9999px;
+      padding: 4px;
+      gap: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      padding: 0.45rem 1rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      border-radius: 9999px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .tab-btn:hover {
+      color: #f8fafc;
+    }
+
+    .tab-btn.active {
+      background: var(--accent);
+      color: #ffffff;
+      box-shadow: 0 2px 10px var(--accent-glow);
+    }
+
+    .user-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 0.35rem 0.8rem;
+      border-radius: 9999px;
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+
+    /* Auth View */
+    .auth-container {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1rem;
+    }
+
+    .auth-card {
+      width: 100%;
+      max-width: 420px;
+      background: rgba(24, 16, 38, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 24px;
+      padding: 2.5rem 2rem;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 40px rgba(139, 92, 246, 0.15);
+      backdrop-filter: blur(16px);
+      text-align: center;
+    }
+
+    .auth-icon-badge {
+      width: 72px;
+      height: 72px;
+      border-radius: 20px;
+      background: linear-gradient(135deg, #9333ea, #4f46e5);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.25rem;
+      box-shadow: 0 10px 25px rgba(147, 51, 234, 0.4);
+      margin-bottom: 1.25rem;
+      animation: floatBadge 3s ease-in-out infinite;
+    }
+
+    @keyframes floatBadge {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
+    }
+
+    .form-group {
+      text-align: left;
+      margin-bottom: 1.25rem;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #cbd5e1;
+      margin-bottom: 0.4rem;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 0.85rem 1rem;
+      border-radius: 12px;
+      background: rgba(12, 8, 20, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #f8fafc;
+      font-size: 0.95rem;
+      font-family: inherit;
+      outline: none;
+      box-sizing: border-box;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .form-input:focus {
+      border-color: #a855f7;
+      box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.3);
+    }
+
+    .btn-action {
+      width: 100%;
+      padding: 0.95rem;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #a855f7, #6366f1);
+      color: #ffffff;
+      font-weight: 700;
+      font-size: 1rem;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(147, 51, 234, 0.4);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .btn-action:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 28px rgba(147, 51, 234, 0.5);
+    }
+
+    .btn-action:active {
+      transform: translateY(1px);
+    }
+
+    /* Game View */
+    .game-layout {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem 1rem 3rem;
+      position: relative;
+    }
+
+    .counter-display {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .counter-number {
+      font-size: clamp(3.5rem, 8vw, 5.5rem);
+      font-weight: 900;
+      line-height: 1;
+      background: linear-gradient(180deg, #ffffff 40%, #cbd5e1 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      color: #ffffff;
+      text-shadow: 0 0 40px rgba(168, 85, 247, 0.4);
+      letter-spacing: -0.03em;
+      transition: transform 0.08s ease;
+    }
+
+    .counter-label {
+      font-size: 0.95rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: #a855f7;
+      margin-top: 0.5rem;
+    }
+
+    .milestone-progress {
+      width: min(320px, 90vw);
+      height: 8px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 9999px;
+      margin: 1rem auto 0;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      position: relative;
+    }
+
+    .milestone-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #8b5cf6, #ec4899);
+      width: 0%;
+      border-radius: 9999px;
+      transition: width 0.15s ease;
+      box-shadow: 0 0 10px rgba(236, 72, 153, 0.6);
+    }
+
+    .milestone-text {
+      font-size: 0.75rem;
+      color: #94a3b8;
+      margin-top: 0.35rem;
+    }
+
+    /* Giant Click Button */
+    .button-container {
+      position: relative;
+      margin: 1.5rem 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .click-button {
+      width: clamp(210px, 50vw, 290px);
+      height: clamp(210px, 50vw, 290px);
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      position: relative;
+      background: radial-gradient(circle at 35% 30%, #c084fc 0%, #7c3aed 55%, #4c1d95 100%);
+      box-shadow: 
+        0 0 0 12px rgba(168, 85, 247, 0.15),
+        0 0 0 24px rgba(168, 85, 247, 0.05),
+        0 20px 40px rgba(0, 0, 0, 0.6),
+        inset 0 4px 8px rgba(255, 255, 255, 0.4),
+        inset 0 -8px 16px rgba(0, 0, 0, 0.5);
+      color: #ffffff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.07s cubic-bezier(0.1, 0.9, 0.2, 1), box-shadow 0.07s;
+      outline: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .click-button:hover {
+      box-shadow: 
+        0 0 0 14px rgba(168, 85, 247, 0.25),
+        0 0 0 28px rgba(168, 85, 247, 0.08),
+        0 24px 45px rgba(0, 0, 0, 0.7),
+        0 0 35px rgba(192, 132, 252, 0.4),
+        inset 0 4px 10px rgba(255, 255, 255, 0.5),
+        inset 0 -8px 16px rgba(0, 0, 0, 0.5);
+    }
+
+    .click-button:active,
+    .click-button.pressed {
+      transform: scale(0.93) translateY(6px);
+      box-shadow: 
+        0 0 0 8px rgba(168, 85, 247, 0.3),
+        0 6px 15px rgba(0, 0, 0, 0.8),
+        inset 0 10px 20px rgba(0, 0, 0, 0.6);
+    }
+
+    .click-button-glow {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(168, 85, 247, 0.3) 0%, transparent 70%);
+      filter: blur(20px);
+      pointer-events: none;
+      z-index: -1;
+      opacity: 0.6;
+      transition: opacity 0.3s;
+    }
+
+    .click-icon {
+      font-size: clamp(2.5rem, 6vw, 3.5rem);
+      margin-bottom: 0.2rem;
+      filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.4));
+      pointer-events: none;
+    }
+
+    .click-text {
+      font-size: clamp(1.1rem, 2.8vw, 1.4rem);
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      pointer-events: none;
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Floating +1 effect */
+    .floating-click {
+      position: absolute;
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: #f472b6;
+      pointer-events: none;
+      animation: floatUp 0.8s ease-out forwards;
+      z-index: 40;
+      text-shadow: 0 0 10px rgba(244, 114, 182, 0.8);
+    }
+
+    @keyframes floatUp {
+      0% {
+        opacity: 1;
+        transform: translate(-50%, 0) scale(0.8);
+      }
+      50% {
+        transform: translate(-50%, -45px) scale(1.25);
+      }
+      100% {
+        opacity: 0;
+        transform: translate(-50%, -90px) scale(1);
+      }
+    }
+
+    /* Ranking View */
+    .ranking-container {
+      width: min(720px, 94vw);
+      margin: 1.5rem auto 3rem;
+      background: rgba(24, 16, 38, 0.7);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 24px;
+      padding: 1.75rem 1.5rem;
+      box-shadow: 0 20px 45px rgba(0, 0, 0, 0.4);
+    }
+
+    .ranking-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .ranking-title {
+      font-size: 1.35rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin: 0;
+    }
+
+    .sync-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.75rem;
+      color: #94a3b8;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 0.35rem 0.75rem;
+      border-radius: 9999px;
+    }
+
+    .sync-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #10b981;
+      animation: pulseDot 2s infinite;
+    }
+
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.8); }
+    }
+
+    .rank-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .rank-item {
+      display: flex;
+      align-items: center;
+      padding: 0.9rem 1.1rem;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      transition: transform 0.15s ease, background 0.15s ease;
+    }
+
+    .rank-item:hover {
+      background: rgba(255, 255, 255, 0.06);
+      transform: translateX(4px);
+    }
+
+    .rank-item.is-me {
+      background: rgba(139, 92, 246, 0.15);
+      border-color: rgba(168, 85, 247, 0.5);
+      box-shadow: 0 0 20px rgba(139, 92, 246, 0.15);
+    }
+
+    .rank-badge {
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 1.1rem;
+      border-radius: 10px;
+      margin-right: 1rem;
+      flex-shrink: 0;
+    }
+
+    .rank-1 {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+    }
+
+    .rank-2 {
+      background: linear-gradient(135deg, #94a3b8, #64748b);
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(148, 163, 184, 0.3);
+    }
+
+    .rank-3 {
+      background: linear-gradient(135deg, #ea580c, #c2410c);
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(234, 88, 12, 0.3);
+    }
+
+    .rank-default {
+      background: rgba(255, 255, 255, 0.08);
+      color: #94a3b8;
+      font-size: 0.95rem;
+    }
+
+    .rank-user-info {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .rank-name {
+      font-weight: 700;
+      color: #f1f5f9;
+      font-size: 1rem;
+    }
+
+    .you-pill {
+      font-size: 0.65rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      padding: 0.15rem 0.45rem;
+      border-radius: 9999px;
+      background: var(--accent);
+      color: #ffffff;
+      letter-spacing: 0.05em;
+    }
+
+    .rank-clicks {
+      font-weight: 800;
+      font-size: 1.15rem;
+      color: #a855f7;
+      text-align: right;
+    }
+
+    .rank-clicks-label {
+      font-size: 0.7rem;
+      color: #94a3b8;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    /* Celebration Modal / Banner */
+    .celebration-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(8px);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    .celebration-overlay.active {
+      display: flex;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .celebration-card {
+      background: linear-gradient(145deg, #231138, #130a22);
+      border: 2px solid #ec4899;
+      border-radius: 28px;
+      padding: 2.5rem 2rem;
+      text-align: center;
+      max-width: 440px;
+      width: 100%;
+      box-shadow: 0 0 60px rgba(236, 72, 153, 0.4), 0 25px 50px rgba(0, 0, 0, 0.8);
+      transform: scale(0.85);
+      animation: popCard 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+
+    @keyframes popCard {
+      to { transform: scale(1); }
+    }
+
+    .celebration-badge-icon {
+      font-size: 4rem;
+      line-height: 1;
+      margin-bottom: 1rem;
+      animation: bounceBadge 1s infinite alternate ease-in-out;
+    }
+
+    @keyframes bounceBadge {
+      from { transform: scale(1) rotate(-5deg); }
+      to { transform: scale(1.15) rotate(5deg); }
+    }
+
+    .celebration-title {
+      font-size: 2.2rem;
+      font-weight: 900;
+      background: linear-gradient(135deg, #fbbf24, #f43f5e, #c084fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      color: #fbbf24;
+      margin: 0 0 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: -0.02em;
+    }
+
+    .celebration-subtitle {
+      color: #cbd5e1;
+      font-size: 1rem;
+      line-height: 1.5;
+      margin-bottom: 1.75rem;
+    }
+
+    .celebration-btn {
+      padding: 0.85rem 2rem;
+      border-radius: 9999px;
+      border: none;
+      background: linear-gradient(135deg, #ec4899, #8b5cf6);
+      color: #ffffff;
+      font-weight: 800;
+      font-size: 1rem;
+      cursor: pointer;
+      box-shadow: 0 6px 20px rgba(236, 72, 153, 0.5);
+      transition: transform 0.15s;
+    }
+
+    .celebration-btn:hover {
+      transform: scale(1.05);
+    }
+
+    /* Confetti Canvas */
+    #confettiCanvas {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 110;
+    }
+
+    /* Sound and Stats Toolbar */
+    .game-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 1.5rem;
+    }
+
+    .ghost-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #94a3b8;
+      border-radius: 9999px;
+      padding: 0.45rem 0.9rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .ghost-btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+    }
+
+    /* Alert / Toast */
+    .alert-box {
+      font-size: 0.85rem;
+      padding: 0.65rem 1rem;
+      border-radius: 10px;
+      margin-bottom: 1rem;
+      display: none;
+      text-align: left;
+    }
+
+    .alert-error {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      color: #fca5a5;
+    }
+
+    .alert-info {
+      background: rgba(59, 130, 246, 0.15);
+      border: 1px solid rgba(59, 130, 246, 0.4);
+      color: #93c5fd;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Fullscreen Confetti Canvas -->
+  <canvas id="confettiCanvas"></canvas>
+
+  <!-- Top App Bar (Visible when logged in) -->
+  <header class="app-header" id="appHeader" style="display: none;">
+    <div class="brand-title">
+      <span class="brand-icon">⚡</span>
+      <span>Clique Aqui</span>
+    </div>
+
+    <nav class="nav-tabs" aria-label="Navegação do jogo">
+      <button class="tab-btn active" id="tabGameBtn" onclick="switchTab('game')">
+        <span>🎮</span> Jogo
+      </button>
+      <button class="tab-btn" id="tabRankingBtn" onclick="switchTab('ranking')">
+        <span>🏆</span> Ranking
+      </button>
+    </nav>
+
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <div class="user-pill">
+        <span style="color: #a855f7;">👤</span>
+        <span id="currentUserNameDisplay">Jogador</span>
+      </div>
+      <button class="ghost-btn" onclick="logout()" title="Sair da conta">
+        <span>🚪</span> Sair
+      </button>
+    </div>
+  </header>
+
+  <!-- SCREEN 1: LOGIN / CADASTRO -->
+  <main class="view-screen active" id="view-auth">
+    <div class="auth-container">
+      <div class="auth-card">
+        <div class="auth-icon-badge">🎯</div>
+        <h1 style="font-size: 1.85rem; font-weight: 800; margin: 0 0 0.5rem; color: #fff;">Jogo dos Cliques</h1>
+        <p style="color: #94a3b8; font-size: 0.9rem; margin: 0 0 1.75rem;">
+          Clique sem parar, alcance marcos históricos e suba no ranking!
+        </p>
+
+        <div id="authAlert" class="alert-box alert-error"></div>
+
+        <form id="authForm" onsubmit="handleAuthSubmit(event)">
+          <div class="form-group">
+            <label class="form-label" for="loginName">Seu nome de jogador</label>
+            <input 
+              type="text" 
+              id="loginName" 
+              class="form-input" 
+              placeholder="Ex: Pedro O Mestre" 
+              required 
+              autocomplete="username"
+              maxlength="24"
+            >
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="loginPassword">Crie uma senha (ou digite a sua)</label>
+            <input 
+              type="password" 
+              id="loginPassword" 
+              class="form-input" 
+              placeholder="Sua senha secreta" 
+              required 
+              autocomplete="current-password"
+            >
+          </div>
+
+          <button type="submit" class="btn-action">
+            Entrar / Criar conta 🚀
+          </button>
+        </form>
+
+        <p style="margin-top: 1.25rem; font-size: 0.75rem; color: #64748b; line-height: 1.4;">
+          💾 Seus dados são salvos localmente no navegador. Você pode retornar quando quiser para continuar sua pontuação!
+        </p>
+      </div>
+    </div>
+  </main>
+
+  <!-- SCREEN 2: CLICKER GAME -->
+  <section class="view-screen" id="view-game">
+    <div class="game-layout">
+      
+      <!-- Counter Banner -->
+      <div class="counter-display">
+        <div class="counter-number" id="clickCounter">0</div>
+        <div class="counter-label">Cliques Conquistados</div>
+        
+        <!-- Next Milestone Tracker -->
+        <div class="milestone-progress" title="Progresso para o próximo marco de 1.000 cliques">
+          <div class="milestone-bar" id="milestoneBar"></div>
+        </div>
+        <div class="milestone-text" id="milestoneText">Próximo marco em 1.000 cliques</div>
+      </div>
+
+      <!-- Main Clicker Target -->
+      <div class="button-container" id="btnWrapper">
+        <div class="click-button-glow" id="btnGlow"></div>
+        <button 
+          id="giantClickBtn" 
+          class="click-button" 
+          aria-label="Clique aqui para somar cliques"
+          tabindex="0"
+        >
+          <span class="click-icon">👆</span>
+          <span class="click-text">Clique Aqui</span>
+        </button>
+      </div>
+
+      <!-- Quick Control Row -->
+      <div class="game-controls">
+        <button class="ghost-btn" id="soundToggleBtn" onclick="toggleSound()">
+          <span id="soundIcon">🔊</span> Som: <span id="soundLabel">Ligado</span>
+        </button>
+        <button class="ghost-btn" onclick="switchTab('ranking')">
+          <span>🏆</span> Ver Classificação
+        </button>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- SCREEN 3: RANKING TAB -->
+  <section class="view-screen" id="view-ranking">
+    <div class="ranking-container">
+      <div class="ranking-header">
+        <div>
+          <h2 class="ranking-title"><span>🏆</span> Salão da Fama</h2>
+          <span style="font-size: 0.8rem; color: #94a3b8;">Classificação em tempo real dos maiores clicadores</span>
+        </div>
+        <div class="sync-indicator">
+          <span class="sync-dot"></span>
+          <span>Atualiza a cada 30s</span>
+        </div>
+      </div>
+
+      <div class="rank-list" id="rankList">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
+  </section>
+
+  <!-- CELEBRATION MODAL (At every 1.000 clicks) -->
+  <div class="celebration-overlay" id="celebrationModal">
+    <div class="celebration-card">
+      <div class="celebration-badge-icon">🎉</div>
+      <h2 class="celebration-title" id="celebrationMilestoneText">1.000 CLIQUES!</h2>
+      <p class="celebration-subtitle">
+        Incrível velocidade! Você desbloqueou uma nova conquista no <strong>Jogo dos Cliques</strong>.
+      </p>
+      <button class="celebration-btn" onclick="closeCelebration()">
+        Continuar Clicando! 💥
+      </button>
+    </div>
+  </div>
+
+  <script>
+    /* ==========================================================================
+       STORAGE & APP STATE
+       ========================================================================== */
+    const STORAGE_KEY_USERS = 'clique_aqui_users';
+    const STORAGE_KEY_SESSION = 'clique_aqui_active_user_id';
+
+    // Mock competitors for rich first-run engagement
+    const DEFAULT_USERS = [
+      { id: 'usr_bot_1', name: 'Mestre do Mouse ⚡', password: '123', clicks: 2450 },
+      { id: 'usr_bot_2', name: 'Dedão Veloz 🚀', password: '123', clicks: 1820 },
+      { id: 'usr_bot_3', name: 'Clicker Supremo 👑', password: '123', clicks: 950 },
+      { id: 'usr_bot_4', name: 'Flash dos Botões ✨', password: '123', clicks: 430 }
+    ];
+
+    let users = [];
+    let currentUser = null;
+    let soundEnabled = true;
+    let audioCtx = null;
+    let rankingInterval = null;
+
+    /* ==========================================================================
+       INITIALIZATION
+       ========================================================================== */
+    window.addEventListener('DOMContentLoaded', () => {
+      loadUsers();
+      checkSession();
+
+      // Setup 30s auto-refresh for ranking
+      rankingInterval = setInterval(() => {
+        if (currentUser) {
+          renderRanking();
+        }
+      }, 30000);
+
+      // Setup click handlers on main button
+      const clickBtn = document.getElementById('giantClickBtn');
+      if (clickBtn) {
+        // Pointer down for maximum responsiveness on touch & desktop
+        clickBtn.addEventListener('pointerdown', (e) => {
+          e.preventDefault();
+          handleClick(e);
+        });
+
+        // Accessible keyboard space / enter
+        clickBtn.addEventListener('keydown', (e) => {
+          if (e.code === 'Space' || e.code === 'Enter') {
+            e.preventDefault();
+            handleClick({ clientX: window.innerWidth / 2, clientY: window.innerHeight / 2 });
+          }
+        });
+      }
+
+      // Resize listener for confetti
+      window.addEventListener('resize', resizeConfetti);
+      resizeConfetti();
+    });
+
+    /* ==========================================================================
+       USER MANAGEMENT & AUTH
+       ========================================================================== */
+    function loadUsers() {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY_USERS);
+        if (stored) {
+          users = JSON.parse(stored);
+        } else {
+          users = [...DEFAULT_USERS];
+          saveUsers();
+        }
+      } catch (e) {
+        users = [...DEFAULT_USERS];
+      }
+    }
+
+    function saveUsers() {
+      try {
+        localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(users));
+      } catch (e) {
+        console.error('Falha ao salvar no localStorage', e);
+      }
+    }
+
+    function checkSession() {
+      const activeId = localStorage.getItem(STORAGE_KEY_SESSION);
+      if (activeId) {
+        const found = users.find(u => u.id === activeId);
+        if (found) {
+          loginSuccess(found);
+          return;
+        }
+      }
+      showScreen('auth');
+    }
+
+    function handleAuthSubmit(e) {
+      e.preventDefault();
+      const nameInput = document.getElementById('loginName');
+      const passInput = document.getElementById('loginPassword');
+      const alertBox = document.getElementById('authAlert');
+
+      const name = nameInput.value.trim();
+      const password = passInput.value.trim();
+
+      if (!name || !password) {
+        showAlert('Preencha seu nome e senha para continuar.', 'error');
+        return;
+      }
+
+      // Check if user with this name already exists
+      const existingUser = users.find(u => u.name.toLowerCase() === name.toLowerCase());
+
+      if (existingUser) {
+        // Authenticate password
+        if (existingUser.password === password) {
+          loginSuccess(existingUser);
+        } else {
+          showAlert('Nome de jogador já cadastrado com outra senha! Digite a senha correta.', 'error');
+        }
+      } else {
+        // Create new account
+        const newUser = {
+          id: 'usr_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+          name: name,
+          password: password,
+          clicks: 0
+        };
+        users.push(newUser);
+        saveUsers();
+        loginSuccess(newUser);
+      }
+    }
+
+    function showAlert(msg, type) {
+      const alertBox = document.getElementById('authAlert');
+      alertBox.textContent = msg;
+      alertBox.className = `alert-box alert-${type}`;
+      alertBox.style.display = 'block';
+    }
+
+    function loginSuccess(user) {
+      currentUser = user;
+      localStorage.setItem(STORAGE_KEY_SESSION, user.id);
+
+      document.getElementById('currentUserNameDisplay').textContent = user.name;
+      document.getElementById('appHeader').style.display = 'flex';
+      
+      updateCounterDisplay();
+      renderRanking();
+      switchTab('game');
+    }
+
+    function logout() {
+      localStorage.removeItem(STORAGE_KEY_SESSION);
+      currentUser = null;
+      document.getElementById('appHeader').style.display = 'none';
+      document.getElementById('loginPassword').value = '';
+      document.getElementById('authAlert').style.display = 'none';
+      showScreen('auth');
+    }
+
+    /* ==========================================================================
+       SCREEN NAVIGATION
+       ========================================================================== */
+    function showScreen(screenId) {
+      document.querySelectorAll('.view-screen').forEach(el => {
+        el.classList.remove('active');
+      });
+
+      const target = document.getElementById(`view-${screenId}`);
+      if (target) {
+        target.classList.add('active');
+      }
+    }
+
+    function switchTab(tab) {
+      const gameBtn = document.getElementById('tabGameBtn');
+      const rankBtn = document.getElementById('tabRankingBtn');
+
+      if (tab === 'game') {
+        gameBtn.classList.add('active');
+        rankBtn.classList.remove('active');
+        showScreen('game');
+      } else {
+        rankBtn.classList.add('active');
+        gameBtn.classList.remove('active');
+        renderRanking();
+        showScreen('ranking');
+      }
+    }
+
+    /* ==========================================================================
+       CORE GAME MECHANICS
+       ========================================================================== */
+    function handleClick(e) {
+      if (!currentUser) return;
+
+      const previousClicks = currentUser.clicks;
+      currentUser.clicks += 1;
+
+      // Persist immediately
+      saveUsers();
+
+      // Trigger Visual Press Animation on Button
+      const btn = document.getElementById('giantClickBtn');
+      btn.classList.add('pressed');
+      setTimeout(() => btn.classList.remove('pressed'), 70);
+
+      // Play audio pop
+      playClickSound();
+
+      // Floating "+1" particle at click point
+      spawnFloatingNumber(e.clientX, e.clientY);
+
+      // Update HUD
+      updateCounterDisplay();
+
+      // Instant Ranking Update (as required by prompt)
+      renderRanking();
+
+      // Check 1.000 clicks milestone
+      const prevMilestone = Math.floor(previousClicks / 1000);
+      const currMilestone = Math.floor(currentUser.clicks / 1000);
+
+      if (currMilestone > prevMilestone && currMilestone > 0) {
+        triggerMilestoneCelebration(currMilestone * 1000);
+      }
+    }
+
+    function updateCounterDisplay() {
+      if (!currentUser) return;
+      const counterEl = document.getElementById('clickCounter');
+      counterEl.textContent = Number(currentUser.clicks).toLocaleString('pt-BR');
+
+      // Milestone progress bar calculation
+      const progressToNext = (currentUser.clicks % 1000) / 1000 * 100;
+      const nextGoal = (Math.floor(currentUser.clicks / 1000) + 1) * 1000;
+      const remaining = nextGoal - currentUser.clicks;
+
+      const bar = document.getElementById('milestoneBar');
+      const label = document.getElementById('milestoneText');
+
+      if (bar) bar.style.width = `${progressToNext}%`;
+      if (label) {
+        label.textContent = `Faltam ${remaining.toLocaleString('pt-BR')} para ${nextGoal.toLocaleString('pt-BR')} cliques`;
+      }
+    }
+
+    function spawnFloatingNumber(x, y) {
+      const container = document.getElementById('btnWrapper');
+      if (!container) return;
+
+      const rect = container.getBoundingClientRect();
+      const span = document.createElement('span');
+      span.className = 'floating-click';
+      span.textContent = '+1';
+
+      // Calculate relative position with subtle random offset
+      let posX = x ? (x - rect.left) : (rect.width / 2);
+      let posY = y ? (y - rect.top) : (rect.height / 2);
+
+      posX += (Math.random() - 0.5) * 40;
+      posY += (Math.random() - 0.5) * 20;
+
+      span.style.left = `${posX}px`;
+      span.style.top = `${posY}px`;
+
+      container.appendChild(span);
+      setTimeout(() => span.remove(), 800);
+    }
+
+    /* ==========================================================================
+       RANKING RENDERING
+       ========================================================================== */
+    function renderRanking() {
+      const rankList = document.getElementById('rankList');
+      if (!rankList) return;
+
+      // Sort users by clicks descending
+      const sorted = [...users].sort((a, b) => b.clicks - a.clicks);
+
+      rankList.innerHTML = '';
+
+      sorted.forEach((u, index) => {
+        const item = document.createElement('div');
+        item.className = 'rank-item' + (currentUser && u.id === currentUser.id ? ' is-me' : '');
+
+        let medalBadge = '';
+        if (index === 0) {
+          medalBadge = `<div class="rank-badge rank-1" title="1º Lugar">🥇</div>`;
+        } else if (index === 1) {
+          medalBadge = `<div class="rank-badge rank-2" title="2º Lugar">🥈</div>`;
+        } else if (index === 2) {
+          medalBadge = `<div class="rank-badge rank-3" title="3º Lugar">🥉</div>`;
+        } else {
+          medalBadge = `<div class="rank-badge rank-default">${index + 1}º</div>`;
+        }
+
+        const isMeBadge = (currentUser && u.id === currentUser.id) 
+          ? `<span class="you-pill">Você</span>` 
+          : '';
+
+        item.innerHTML = `
+          ${medalBadge}
+          <div class="rank-user-info">
+            <span class="rank-name">${escapeHtml(u.name)}</span>
+            ${isMeBadge}
+          </div>
+          <div>
+            <div class="rank-clicks">${Number(u.clicks).toLocaleString('pt-BR')}</div>
+            <div class="rank-clicks-label">cliques</div>
+          </div>
+        `;
+
+        rankList.appendChild(item);
+      });
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    /* ==========================================================================
+       CELEBRATION ANIMATION & PARTICLES (1.000 CLICKS)
+       ========================================================================== */
+    function triggerMilestoneCelebration(milestone) {
+      const modal = document.getElementById('celebrationModal');
+      const title = document.getElementById('celebrationMilestoneText');
+      title.textContent = `🎉 ${milestone.toLocaleString('pt-BR')} CLIQUES! 🎉`;
+
+      modal.classList.add('active');
+
+      // Pulse the giant button
+      const btn = document.getElementById('giantClickBtn');
+      btn.style.animation = 'pulseGlow 1s infinite alternate';
+
+      // Fanfare audio
+      playFanfareSound();
+
+      // Launch full screen confetti
+      startConfetti(250);
+    }
+
+    function closeCelebration() {
+      const modal = document.getElementById('celebrationModal');
+      modal.classList.remove('active');
+
+      const btn = document.getElementById('giantClickBtn');
+      btn.style.animation = '';
+    }
+
+    /* ==========================================================================
+       CONFETTI CANVAS ENGINE
+       ========================================================================== */
+    const canvas = document.getElementById('confettiCanvas');
+    const ctx = canvas.getContext('2d');
+    let confettiParticles = [];
+    let confettiAnimationId = null;
+
+    function resizeConfetti() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+
+    function startConfetti(count = 200) {
+      confettiParticles = [];
+      const colors = ['#f43f5e', '#8b5cf6', '#3b82f6', '#10b981', '#fbbf24', '#ec4899', '#ffffff'];
+
+      for (let i = 0; i < count; i++) {
+        confettiParticles.push({
+          x: canvas.width * 0.5 + (Math.random() - 0.5) * 200,
+          y: canvas.height * 0.4 + (Math.random() - 0.5) * 100,
+          vx: (Math.random() - 0.5) * 18,
+          vy: Math.random() * -14 - 6,
+          size: Math.random() * 8 + 4,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          rotation: Math.random() * 360,
+          rotationSpeed: (Math.random() - 0.5) * 12,
+          gravity: 0.35 + Math.random() * 0.2,
+          opacity: 1
+        });
+      }
+
+      if (!confettiAnimationId) {
+        renderConfettiLoop();
+      }
+    }
+
+    function renderConfettiLoop() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      let alive = 0;
+      for (let p of confettiParticles) {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += p.gravity;
+        p.rotation += p.rotationSpeed;
+
+        if (p.y > canvas.height * 0.7) {
+          p.opacity -= 0.015;
+        }
+
+        if (p.opacity > 0 && p.y < canvas.height + 50) {
+          alive++;
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate((p.rotation * Math.PI) / 180);
+          ctx.fillStyle = p.color;
+          ctx.globalAlpha = Math.max(0, p.opacity);
+          ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
+          ctx.restore();
+        }
+      }
+
+      if (alive > 0) {
+        confettiAnimationId = requestAnimationFrame(renderConfettiLoop);
+      } else {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        cancelAnimationFrame(confettiAnimationId);
+        confettiAnimationId = null;
+      }
+    }
+
+    /* ==========================================================================
+       SYNTHETIC WEB AUDIO (Zero External Assets)
+       ========================================================================== */
+    function getAudioContext() {
+      if (!audioCtx) {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) audioCtx = new AudioContext();
+      }
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      return audioCtx;
+    }
+
+    function toggleSound() {
+      soundEnabled = !soundEnabled;
+      const icon = document.getElementById('soundIcon');
+      const label = document.getElementById('soundLabel');
+      if (icon) icon.textContent = soundEnabled ? '🔊' : '🔇';
+      if (label) label.textContent = soundEnabled ? 'Ligado' : 'Mudo';
+    }
+
+    function playClickSound() {
+      if (!soundEnabled) return;
+      try {
+        const ctx = getAudioContext();
+        if (!ctx) return;
+
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        // High snappy pitch "pop"
+        const now = ctx.currentTime;
+        const freq = 350 + Math.random() * 150;
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now);
+        osc.frequency.exponentialRampToValueAtTime(120, now + 0.06);
+
+        gain.gain.setValueAtTime(0.18, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.07);
+      } catch (e) {}
+    }
+
+    function playFanfareSound() {
+      if (!soundEnabled) return;
+      try {
+        const ctx = getAudioContext();
+        if (!ctx) return;
+
+        // Triad notes: C5, E5, G5, C6
+        const notes = [523.25, 659.25, 783.99, 1046.50];
+        const now = ctx.currentTime;
+
+        notes.forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+
+          osc.type = 'triangle';
+          osc.frequency.value = freq;
+
+          const start = now + idx * 0.12;
+          gain.gain.setValueAtTime(0.25, start);
+          gain.gain.exponentialRampToValueAtTime(0.001, start + 0.35);
+
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+
+          osc.start(start);
+          osc.stop(start + 0.36);
+        });
+      } catch (e) {}
+    }
+  </script>
+</body>
+</html>
