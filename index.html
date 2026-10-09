@@ -1487,5 +1487,29 @@ table.shell-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 
   // A cada clique:  salvarCliques(nomeDoJogador, totalDeCliques);
   // Ao entrar e a cada 30s:  buscarRanking();
 </script>
+
+<script>
+  // ===== CONEXÃO COM A PLANILHA (RANKING) =====
+  var URL_BANCO = "https://script.google.com/macros/s/AKfycbxXIqRSvhA0R1R9tMavww_3jEwzhPS5NkY5QtlhVDT7khKAjHQzt-wGDXOYMOjAVfNr4Q/exec";
+
+  // Salva os cliques na planilha
+  function salvarCliques(nome, cliques) {
+    fetch(URL_BANCO, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nome: nome, cliques: cliques })salvarCliques(nomeDoJogador, totalDeCliques);
+    }).catch(function (e) { console.log("Erro ao salvar", e); });
+  }
+
+  // Busca o ranking da planilha
+  function buscarRanking() {
+    fetch(URL_BANCO)
+      .then(function (r) { return r.json(); })
+      .then(function (ranking) { atualizarRanking(ranking); })
+      .catch(function (e) { console.log("Erro ao buscar", e); });
+  }
+</script>
+setInterval(buscarRanking, 30000);
+  buscarRanking();
 </body>
 </html>
